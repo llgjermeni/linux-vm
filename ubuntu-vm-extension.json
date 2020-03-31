@@ -18,8 +18,8 @@
     "rglocation": "eastus",
     "vmSize": "Standard_B2s",
     "adminUser": "vm-admin",
-    "dnsNameForPublicIP": "[concat(parameters('customerName'),'Dns')]",
-    "scriptUrl": "https://raw.githubusercontent.com/llgjermeni/linux-vm/master/scripts/extension.sh",
+    "dnsNameForPublicIP": "[concat(parameters('customerName'),'dns')]",
+    "scriptUrl": "https://raw.githubusercontent.com/llgjermeni/linux-vm/master/",
     "imagePublisher": "Canonical",
     "imageOffer": "UbuntuServer",
     "ubuntuOSVersion": "18.04-LTS",
@@ -32,7 +32,7 @@
     "vmName": "[concat(parameters('customerName'),'VM')]",
     "virtualNetworkName": "[concat(parameters('customerName'),'Vnet')]",
     "diagnosticsStorageAccountName": "nameofdiagnstore",
-    "commandToExecute": "sh hello.sh",
+    "commandToExecute": "sh extension.sh",
     "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
   },
   "resources": [
@@ -149,7 +149,7 @@
       },
       "kind": "Storage",
       "sku": {
-        "name": "Premium_LRS"
+        "name": "Standard_LRS"
       }
     },
     {
@@ -167,7 +167,7 @@
         "autoUpgradeMinorVersion": true,
         "settings": {
           "fileUris": [
-            "[concat(variables('scriptUrl'), '/scripts/hello.sh')]"
+            "[concat(variables('scriptUrl'), 'scripts/extension.sh')]"
           ],
           "commandToExecute": "[variables('commandToExecute')]"
         }

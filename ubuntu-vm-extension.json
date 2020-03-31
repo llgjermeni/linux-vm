@@ -16,11 +16,11 @@
   },
   "variables": {
     "rglocation": "eastus",
-    "rgName": "[concat(parameters('customerName'),'-rg')]",
+    "rgName": "SaaS",
     "vmSize": "Standard_B2s",
     "adminUser": "vm-admin",
     "dnsNameForPublicIP": "[concat(parameters('customerName'),'dns')]",
-    "scriptUrl": "",
+    "scriptUrl": "https://raw.githubusercontent.com/llgjermeni/linux-vm/master/scripts/extension.sh",
     "imagePublisher": "Canonical",
     "imageOffer": "UbuntuServer",
     "ubuntuOSVersion": "18.04-LTS",
@@ -39,16 +39,14 @@
   "resources": [
     {
       "type": "Microsoft.Resources/resourceGroups",
-      "apiVersion": "2018-05-01",
+      "apiVersion": "2019-09-01",
       "name": "[variables('rgName')]",
-      "location": "[variables('rglocation')]",
-      "properties": {
-      }
+      "location": "[variables('rglocation')]"
     },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2018-05-01",
-      "name": "storageDeployment",
+      "name": "VMDeployment",
       "resourceGroup": "[variables('rgName')]",
       "dependsOn": [
         "[resourceId('Microsoft.Resources/resourceGroups/', variables('rgName'))]"
@@ -63,147 +61,146 @@
           "variables": {
           },
           "resources": [
-              {
-                "apiVersion": "2019-02-01",
-                "type": "Microsoft.Network/publicIPAddresses",
-                "name": "[variables('publicIPAddressName')]",
-                "location": "[resourceGroup().location]",
-                "properties": {
-                  "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
-                  "dnsSettings": {
-                    "domainNameLabel": "[variables('dnsNameForPublicIP')]"
-                  }
+            {
+              "apiVersion": "2019-02-01",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "name": "[variables('publicIPAddressName')]",
+              "location": "[resourceGroup().location]",
+              "properties": {
+                "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
+                "dnsSettings": {
+                  "domainNameLabel": "[variables('dnsNameForPublicIP')]"
                 }
-              },
-              {
-                "apiVersion": "2019-09-01",
-                "type": "Microsoft.Network/virtualNetworks",
-                "name": "[variables('virtualNetworkName')]",
-                "location": "[resourceGroup().location]",
-                "properties": {
-                  "addressSpace": {
-                    "addressPrefixes": [
-                      "[variables('vnetAddressPrefix')]"
-                    ]
-                  },
-                  "subnets": [
-                    {
-                      "name": "[variables('subnetName')]",
-                      "properties": {
-                        "addressPrefix": "[variables('subnetPrefix')]"
-                      }
-                    }
+              }
+            },
+            {
+              "apiVersion": "2019-09-01",
+              "type": "Microsoft.Network/virtualNetworks",
+              "name": "[variables('virtualNetworkName')]",
+              "location": "[resourceGroup().location]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[variables('vnetAddressPrefix')]"
                   ]
-                }
-              },
-              {
-                "apiVersion": "2019-07-01",
-                "type": "Microsoft.Network/networkInterfaces",
-                "name": "[variables('nicName')]",
-                "location": "[resourceGroup().location]",
-                "dependsOn": [
-                  "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-                  "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
-                ],
-                "properties": {
-                  "ipConfigurations": [
-                    {
-                      "name": "ipconfig1",
-                      "properties": {
-                        "privateIPAllocationMethod": "Dynamic",
-                        "publicIPAddress": {
-                          "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
-                        },
-                        "subnet": {
-                          "id": "[variables('subnetRef')]"
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "apiVersion": "2019-07-01",
-                "type": "Microsoft.Compute/virtualMachines",
-                "name": "[variables('vmName')]",
-                "location": "[resourceGroup().location]",
-                "dependsOn": [
-                  "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
-                  "[concat('Microsoft.Storage/storageAccounts/', variables('diagnosticsStorageAccountName'))]"
-                ],
-                "properties": {
-                  "hardwareProfile": {
-                    "vmSize": "[variables('vmSize')]"
-                  },
-                  "osProfile": {
-                    "computerName": "[variables('vmName')]",
-                    "adminUsername": "[variables('adminUser')]",
-                    "adminPassword": "[parameters('adminPassword')]"
-                  },
-                  "storageProfile": {
-                    "imageReference": {
-                      "publisher": "[variables('imagePublisher')]",
-                      "offer": "[variables('imageOffer')]",
-                      "sku": "[variables('ubuntuOSVersion')]",
-                      "version": "latest"
-                    },
-                    "osDisk": {
-                      "caching": "ReadWrite",
-                      "createOption": "FromImage"
-                    }
-                  },
-                  "networkProfile": {
-                    "networkInterfaces": [
-                      {
-                        "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
-                      }
-                    ]
-                  },
-                  "diagnosticsProfile": {
-                    "bootDiagnostics": {
-                      "enabled": true,
-                      "storageUri": "[concat('https://', variables('diagnosticsStorageAccountName'), '.blob.core.windows.net/')]"
-                    }
-                  }
-                }
-              },
-              {
-                "name": "[variables('diagnosticsStorageAccountName')]",
-                "type": "Microsoft.Storage/storageAccounts",
-                "apiVersion": "2019-06-01",
-                "location": "[resourceGroup().location]",
-                "properties": {
                 },
-                "kind": "Storage",
-                "sku": {
-                  "name": "Premium_LRS"
-                }
-              },
-              {
-                "type": "Microsoft.Compute/virtualMachines/extensions",
-                "name": "[concat(variables('vmName'),'/installcustomscript')]",
-                "apiVersion": "2015-05-01-preview",
-                "location": "[resourceGroup().location]",
-                "dependsOn": [
-                  "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
-                ],
-                "properties": {
-                  "publisher": "Microsoft.Azure.Extensions",
-                  "type": "CustomScript",
-                  "typeHandlerVersion": "2.0",
-                  "autoUpgradeMinorVersion": true,
-                  "settings": {
-                    "fileUris": [
-                      "[concat(variables('scriptUrl'), '/scripts/hello.sh')]"
-                    ],
-                    "commandToExecute": "[variables('commandToExecute')]"
+                "subnets": [
+                  {
+                    "name": "[variables('subnetName')]",
+                    "properties": {
+                      "addressPrefix": "[variables('subnetPrefix')]"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "apiVersion": "2019-07-01",
+              "type": "Microsoft.Network/networkInterfaces",
+              "name": "[variables('nicName')]",
+              "location": "[resourceGroup().location]",
+              "dependsOn": [
+                "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+              ],
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
+                      },
+                      "subnet": {
+                        "id": "[variables('subnetRef')]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "apiVersion": "2019-07-01",
+              "type": "Microsoft.Compute/virtualMachines",
+              "name": "[variables('vmName')]",
+              "location": "[resourceGroup().location]",
+              "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]",
+                "[concat('Microsoft.Storage/storageAccounts/', variables('diagnosticsStorageAccountName'))]"
+              ],
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[variables('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[variables('vmName')]",
+                  "adminUsername": "[variables('adminUser')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('ubuntuOSVersion')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+                    }
+                  ]
+                },
+                "diagnosticsProfile": {
+                  "bootDiagnostics": {
+                    "enabled": true,
+                    "storageUri": "[concat('https://', variables('diagnosticsStorageAccountName'), '.blob.core.windows.net/')]"
                   }
                 }
               }
+            },
+            {
+              "name": "[variables('diagnosticsStorageAccountName')]",
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2019-06-01",
+              "location": "[resourceGroup().location]",
+              "properties": {
+              },
+              "kind": "Storage",
+              "sku": {
+                "name": "Premium_LRS"
+              }
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "name": "[concat(variables('vmName'),'/installcustomscript')]",
+              "apiVersion": "2015-05-01-preview",
+              "location": "[resourceGroup().location]",
+              "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "fileUris": [
+                    "[concat(variables('scriptUrl'), '/scripts/hello.sh')]"
+                  ],
+                  "commandToExecute": "[variables('commandToExecute')]"
+                }
+              }
+            }
           ]
         }
       }
     }
   ]
 }
-  
